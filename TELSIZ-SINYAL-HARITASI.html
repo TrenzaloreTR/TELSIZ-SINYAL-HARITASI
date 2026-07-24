@@ -1,0 +1,509 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TA1TRC Sinyal Analiz Haritası</title>
+
+    <!-- Leaflet & Heatmap CSS/JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            overflow: hidden;
+            background-color: #222;
+        }
+
+        /* Yan Panel */
+        #sidebar {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 380px;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            box-shadow: 2px 0 15px rgba(0,0,0,0.8);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #map {
+            position: absolute;
+            left: 380px;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 1;
+            background-color: #111;
+        }
+
+        #sidebar h2 {
+            padding: 20px;
+            background-color: #1a252f;
+            text-align: center;
+            border-bottom: 2px solid #34495e;
+            font-size: 1.3rem;
+            margin: 0;
+        }
+
+        .controls-box {
+            padding: 15px;
+            background: #22313f;
+            border-bottom: 2px solid #1a252f;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            user-select: none;
+        }
+
+            .toggle-label input[type="checkbox"] {
+                width: 18px;
+                height: 18px;
+                cursor: pointer;
+            }
+
+        .info-box {
+            padding: 15px;
+            font-size: 0.85rem;
+            background: #34495e;
+        }
+
+        .gradient-bar {
+            height: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            background: linear-gradient(to right, #e74c3c, #f39c12, #2ecc71);
+        }
+
+        .labels {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 0.75rem;
+        }
+
+        #relay-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .relay-btn {
+            background-color: #16a085;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 15px;
+            margin-bottom: 12px;
+            width: 100%;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: bold;
+            transition: transform 0.2s, filter 0.2s;
+            text-align: left;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+            .relay-btn:hover {
+                filter: brightness(1.2);
+                transform: scale(1.02);
+            }
+
+        .relay-stats {
+            font-size: 0.8rem;
+            font-weight: normal;
+            margin-top: 5px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .btn-show-all {
+            background-color: #3498db;
+            text-align: center;
+            justify-content: center;
+        }
+
+        /* Harita Popup */
+        .leaflet-popup-content-wrapper {
+            background: #1a252f;
+            color: #fff;
+            border-radius: 8px;
+            border: 1px solid #7f8c8d;
+        }
+
+        .leaflet-popup-tip {
+            background: #1a252f;
+        }
+
+        .leaflet-popup-content h3 {
+            color: #f1c40f;
+            border-bottom: 1px solid #7f8c8d;
+            padding-bottom: 5px;
+            margin-bottom: 8px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #2c3e50;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #16a085;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2>📡 TA1TRC Sinyal Analizi</h2>
+
+        <div class="controls-box">
+            <label class="toggle-label">
+                <input type="checkbox" id="chk-circles" checked>
+                Kapsama Çemberlerini Göster
+            </label>
+            <label class="toggle-label">
+                <input type="checkbox" id="chk-heat">
+                Sinyal Isı İzi (Heatmap) Göster
+            </label>
+        </div>
+
+        <div class="info-box">
+            <h4>Sinyal Seviyesi Göstergesi:</h4>
+            <div class="gradient-bar"></div>
+            <div class="labels">
+                <span style="color:#e74c3c;">Çok Kötü / Kör Nokta</span>
+                <span style="color:#f39c12;">Cızırtılı / Zor</span>
+                <span style="color:#2ecc71;">Net / Full (Yeşil)</span>
+            </div>
+        </div>
+
+        <div id="relay-list">
+            <button class="relay-btn btn-show-all" id="btn-show-all">🌍 Tüm Sinyal Ağı'nı Göster</button>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+
+            // --- 1. RÖLE VERİLERİ (İSTENİLEN SIRADA) ---
+            const RELAYS = {
+                "Esenyurt Rölesi": { "lat": 41.0341, "lng": 28.6800, "freq": "439.250 MHz", "color": "#27ae60" },
+                "TAMAD U Rölesi": { "lat": 41.0000, "lng": 28.6000, "freq": "439.250 MHz", "color": "#2980b9" },
+                "Zeytinburnu Rölesi": { "lat": 40.9880, "lng": 28.9040, "freq": "439.400 MHz", "color": "#d35400" },
+                "Tekstilkent Rölesi": { "lat": 41.0660, "lng": 28.8650, "freq": "439.200 MHz", "color": "#f39c12" },
+                "Beşiktaş Rölesi": { "lat": 41.0430, "lng": 29.0060, "freq": "438.437 MHz", "color": "#16a085" },
+                "Çamlıca Rölesi": { "lat": 41.0250, "lng": 29.0670, "freq": "439.162 MHz", "color": "#c0392b" },
+                "Kadıköy Rölesi": { "lat": 40.9900, "lng": 29.0250, "freq": "439.262 MHz", "color": "#8e44ad" },
+                "Kayışdağı Rölesi": { "lat": 40.9760, "lng": 29.1520, "freq": "439.150 / 145.675 MHz", "color": "#e67e22" }
+            };
+
+            // --- 2. GÜNCELLENMİŞ TÜM TEST VERİLERİ VE NOTLAR ---
+            const RAW_TESTS = [
+                { coord: "41°02'05.3\"N 28°32'45.0\"E", title: "1. İşaretli yer (Serhat Sk.)", results: [["Esenyurt Rölesi", 100]], note: "439,250 Esenyurt rölesi full çekiyor ve cızırtı yok, feedback harika." },
+                { coord: "41°02'01.4\"N 28°32'42.4\"E", title: "2. İşaretli yer (Rüzgarlı Sk.)", results: [["Esenyurt Rölesi", 100], ["Zeytinburnu Rölesi", 25]], note: "439,400 tepki vermiyor. Mandallama kesintili (Kırmızı). Esenyurt full (Yeşil)." },
+                { coord: "41°04'46.1\"N 28°58'11.2\"E", title: "3. İşaretli Yer (Nişantaşı Üni)", results: [["Esenyurt Rölesi", 100]], note: "3.kat sınıf 305 pencere önü. Röle sapasağlam açılıyor (Yeşil)." },
+                { coord: "40.979921, 28.732104", title: "4. Avcılar", results: [["Zeytinburnu Rölesi", 50]], note: "Metrobüs içindeyim, UV-S9 Plus stok anten. Feedback var (Turuncu)." },
+                { coord: "40.9773203, 28.7418437", title: "5. E5", results: [["Zeytinburnu Rölesi", 20]], note: "Metrobüs içindeyim. Sadece Feedback var (Kırmızı)." },
+                { coord: "40.9865510, 28.7697583", title: "6. Küçükçekmece", results: [["Esenyurt Rölesi", 50]], note: "Otobüs Durağı. Esenyurt cızırtılı (Turuncu)." },
+                { coord: "41.0200, 28.5800", title: "7. Korugan 174", results: [], note: "Tarihi Yer." },
+                { coord: "41°01'29.0\"N 29°06'16.9\"E", title: "8. İşaretli Yer (Ümraniye)", results: [["Kadıköy Rölesi", 100], ["Kayışdağı Rölesi", 50]], note: "37 Kadıköy full ve tertemiz (Yeşil). 45 Kayışdağı UHF full ama biraz cızırtılı (Turuncu)." },
+                { coord: "41°11'15.7\"N 29°02'20.0\"E", title: "9. İşaretli Yer", results: [["Tekstilkent Rölesi", 100], ["Kadıköy Rölesi", 100], ["Kayışdağı Rölesi", 100], ["Zeytinburnu Rölesi", 100]], note: "Tüm belirtilen röleler full çekiyor (Yeşil)." },
+                { coord: "41°01'17.4\"N 29°02'55.9\"E", title: "10. İşaretli Yer (256 Otobüs)", results: [["Esenyurt Rölesi", 100], ["Beşiktaş Rölesi", 100], ["Zeytinburnu Rölesi", 100], ["Tekstilkent Rölesi", 25], ["Kadıköy Rölesi", 25], ["Çamlıca Rölesi", 100]], note: "35 hafif cızırtılı, 37 baya cızırtılı (Turuncu). 63 1 çekiyor ve çok cızırtılı (Kırmızı)." },
+                { coord: "40°59'53.7\"N 28°52'27.6\"E", title: "11. İşaretli Yer", results: [["Zeytinburnu Rölesi", 100], ["Tekstilkent Rölesi", 100], ["Kadıköy Rölesi", 100]], note: "34, 35, 37 full çekiyor (Yeşil)." },
+                { coord: "41°00'05.6\"N 28°53'07.0\"E", title: "12. İşaretli Yer", results: [["Kayışdağı Rölesi", 100], ["Zeytinburnu Rölesi", 100]], note: "45n, 47, 52 full çekiyor (Yeşil)." },
+                { coord: "41°00'14.4\"N 28°53'31.4\"E", title: "13. İşaretli Yer", results: [["Tekstilkent Rölesi", 100], ["Zeytinburnu Rölesi", 100]], note: "63, 70, 81 full çekiyor (Yeşil)." },
+                { coord: "41°00'57.7\"N 28°54'37.2\"E", title: "14. İşaretli Yer", results: [], note: "Not Yok" },
+                { coord: "40°59'01.7\"N 29°13'54.0\"E", title: "15. İşaretli Yer", results: [["Kadıköy Rölesi", 100], ["Kayışdağı Rölesi", 100], ["Tekstilkent Rölesi", 60]], note: "37, 44, 45 full. 81 net baya (Yeşil)." },
+                { coord: "41°01'10.2\"N 28°46'07.2\"E", title: "16. İşaretli Yer (Marmaray)", results: [["Esenyurt Rölesi", 100], ["TAMAD U Rölesi", 100], ["Zeytinburnu Rölesi", 100], ["Tekstilkent Rölesi", 25]], note: "0, 32, 34 full. 35 hafif cızırtılı (Turuncu). 63 çok cızırtılı ve zar zor (Kırmızı). 81 aşırı kötü feedback yok (Kırmızı)." },
+                { coord: "40°58'22.5\"N 28°47'14.7\"E", title: "17. İşaretli Yer (Marmaray)", results: [["Esenyurt Rölesi", 75], ["TAMAD U Rölesi", 75], ["Zeytinburnu Rölesi", 25], ["Tekstilkent Rölesi", 50]], note: "0 iyi, 32 iyi (Yeşil). 34 kötü (Kırmızı). 35 cızırtılı (Turuncu)." },
+                { coord: "40°58'04.1\"N 28°47'48.9\"E", title: "18. İşaretli Yer (Marmaray)", results: [["Esenyurt Rölesi", 75], ["TAMAD U Rölesi", 75], ["Zeytinburnu Rölesi", 50]], note: "0 iyi, 32 iyi (Yeşil). 34 cızırtılı (Turuncu)." },
+                { coord: "40°57'45.6\"N 28°49'29.3\"E", title: "19. İşaretli Yer (Marmaray)", results: [["Esenyurt Rölesi", 50], ["Beşiktaş Rölesi", 50], ["TAMAD U Rölesi", 50], ["Zeytinburnu Rölesi", 50], ["Tekstilkent Rölesi", 50], ["Kadıköy Rölesi", 50]], note: "Tüm röleler cızırtılı (Turuncu)." },
+                { coord: "40°58'29.1\"N 28°50'10.9\"E", title: "20. İşaretli Yer", results: [["Esenyurt Rölesi", 100], ["Beşiktaş Rölesi", 100], ["TAMAD U Rölesi", 100], ["Zeytinburnu Rölesi", 100], ["Tekstilkent Rölesi", 80], ["Kadıköy Rölesi", 80], ["Çamlıca Rölesi", 100], ["Kayışdağı Rölesi", 100]], note: "0, 3, 32, 34 net. 35, 37 hafif cızırtılı ama net. 42, 44, 45, 47, 51, 63, 70, 72, 81 net (Yeşil/Turuncu karma)." }
+            ];
+
+            // --- KOORDİNAT PARSER ---
+            function parseCoordinate(coordStr) {
+                if (!coordStr) return null;
+                if (!coordStr.includes("°") && coordStr.includes(",")) {
+                    let parts = coordStr.split(',');
+                    return { lat: parseFloat(parts[0].trim()), lng: parseFloat(parts[1].trim()) };
+                }
+                const dmsPattern = /(\d+)°(\d+)'([\d\.]+)"([NS])\s*\,?\s*(\d+)°(\d+)'([\d\.]+)"([EW])/;
+                const match = coordStr.match(dmsPattern);
+                if (match) {
+                    let lat = parseFloat(match[1]) + parseFloat(match[2]) / 60 + parseFloat(match[3]) / 3600;
+                    let lng = parseFloat(match[5]) + parseFloat(match[6]) / 60 + parseFloat(match[7]) / 3600;
+                    if (match[4] === 'S') lat = -lat;
+                    if (match[8] === 'W') lng = -lng;
+                    return { lat: lat, lng: lng };
+                }
+                return null;
+            }
+
+            // RAW_TESTS Verisini Harita Yapısına Dönüştür
+            const relayData = {};
+            for (const [rName, rInfo] of Object.entries(RELAYS)) {
+                relayData[rName] = { info: rInfo, tests: [] };
+            }
+
+            RAW_TESTS.forEach(test => {
+                const coords = parseCoordinate(test.coord);
+                if (coords) {
+                    test.results.forEach(res => {
+                        const rName = res[0];
+                        const signal = res[1];
+                        if (relayData[rName]) {
+                            relayData[rName].tests.push({
+                                title: test.title,
+                                lat: coords.lat,
+                                lng: coords.lng,
+                                signal: signal,
+                                note: test.note
+                            });
+                        }
+                    });
+                }
+            });
+
+            // --- HARİTA KURULUMU ---
+            const map = L.map('map', { zoomControl: true }).setView([41.0082, 28.9784], 10);
+
+            const googleHybrid = L.tileLayer('http://mt0.google.com/vt/lyrs=y&hl=tr&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '&copy; Google' });
+            const googleStreets = L.tileLayer('http://mt0.google.com/vt/lyrs=m&hl=tr&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '&copy; Google' });
+            const googleSat = L.tileLayer('http://mt0.google.com/vt/lyrs=s&hl=tr&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '&copy; Google' });
+            const darkTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 20, attribution: '&copy; CartoDB' });
+
+            googleHybrid.addTo(map);
+
+            L.control.layers({
+                "Google Hibrit (Uydu + Yol)": googleHybrid,
+                "Google Varsayılan (Sokak)": googleStreets,
+                "Google Uydu (Sade)": googleSat,
+                "Karanlık Gece Haritası": darkTile
+            }).addTo(map);
+
+            // Sağ Tık Koordinat Kopyalama
+            map.on('contextmenu', function (e) {
+                const lat = e.latlng.lat.toFixed(6);
+                const lng = e.latlng.lng.toFixed(6);
+                const coordStr = `${lat}, ${lng}`;
+
+                const popupContent = `
+                        <div style="text-align:center;">
+                            <h4 style="margin:0 0 8px 0; color:#f1c40f;">Nokta Koordinatı</h4>
+                            <input type="text" id="coordInput" value="${coordStr}" readonly style="width:100%; padding:8px; text-align:center; border:1px solid #ccc; border-radius:4px; margin-bottom:8px; color:#222; font-weight:bold;">
+                            <button onclick="copyCoord()" style="background:#27ae60; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; width:100%; font-weight:bold;">Kopyala</button>
+                        </div>
+                    `;
+                L.popup().setLatLng(e.latlng).setContent(popupContent).openOn(map);
+            });
+
+            window.copyCoord = function () {
+                const copyText = document.getElementById("coordInput");
+                copyText.select();
+                navigator.clipboard.writeText(copyText.value).then(() => alert("Koordinat kopyalandı!"));
+            };
+
+            // --- ÇİZİM VE RENKLENDİRME MOTORU ---
+            const listContainer = document.getElementById('relay-list');
+            let currentLayers = [];
+            let heatLayer = null;
+
+            let showCircles = true;
+            let showHeatmap = false;
+            let currentActiveRelay = null;
+
+            document.getElementById('chk-circles').addEventListener('change', (e) => {
+                showCircles = e.target.checked;
+                drawCoverage(currentActiveRelay);
+            });
+
+            document.getElementById('chk-heat').addEventListener('change', (e) => {
+                showHeatmap = e.target.checked;
+                drawCoverage(currentActiveRelay);
+            });
+
+            // İstenen Renk Ölçeği: Net/Full=Yeşil, Cızırtılı=Turuncu, Çok Kötü=Kırmızı
+            function getSignalColor(signal) {
+                if (signal >= 75) return '#2ecc71'; // Yeşil (Net / Full)
+                if (signal >= 30) return '#f39c12'; // Turuncu (Cızırtılı / Zor)
+                return '#e74c3c';                   // Kırmızı (Çok Kötü / Kör Nokta)
+            }
+
+            function drawGradientLine(startLat, startLng, endLat, endLng, startSignal, endSignal, heatArr) {
+                const segments = 20;
+                const latStep = (endLat - startLat) / segments;
+                const lngStep = (endLng - startLng) / segments;
+                const sigStep = (endSignal - startSignal) / segments;
+
+                for (let i = 0; i < segments; i++) {
+                    let sLat = startLat + (latStep * i);
+                    let sLng = startLng + (lngStep * i);
+                    let eLat = startLat + (latStep * (i + 1));
+                    let eLng = startLng + (lngStep * (i + 1));
+
+                    let currentSig = startSignal + (sigStep * i);
+
+                    if (showHeatmap) {
+                        heatArr.push([sLat, sLng, currentSig / 100]);
+                    }
+
+                    let color = getSignalColor(currentSig);
+                    let opacity = currentSig > 25 ? 0.8 : 0.3;
+                    let dash = currentSig < 30 ? '4, 8' : '';
+
+                    let line = L.polyline([[sLat, sLng], [eLat, eLng]], {
+                        color: color, weight: 3.5, opacity: opacity, dashArray: dash
+                    }).addTo(map);
+                    currentLayers.push(line);
+                }
+            }
+
+            function drawCoverage(targetRelay = null) {
+                currentLayers.forEach(layer => map.removeLayer(layer));
+                if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+                currentLayers = [];
+                const bounds = [];
+                const heatPoints = [];
+
+                for (const [relayName, data] of Object.entries(relayData)) {
+                    if (targetRelay && relayName !== targetRelay) continue;
+                    if (data.tests.length === 0 && targetRelay) continue;
+
+                    const rLat = data.info.lat;
+                    const rLng = data.info.lng;
+                    bounds.push([rLat, rLng]);
+
+                    // Röle İkonu
+                    const relayMarker = L.circleMarker([rLat, rLng], {
+                        radius: 10, fillColor: data.info.color, color: '#fff', weight: 2, fillOpacity: 1
+                    }).bindPopup(`<h3>📡 ${relayName}</h3>Frekans: ${data.info.freq}<br>Merkez İstasyon`);
+                    relayMarker.addTo(map);
+                    currentLayers.push(relayMarker);
+
+                    if (data.tests.length === 0) continue;
+
+                    // ÇEMBERLER
+                    if (showCircles) {
+                        let maxDistGreen = 0, maxDistOrange = 0, maxDistRed = 0;
+                        const rPoint = L.latLng(rLat, rLng);
+
+                        data.tests.forEach(test => {
+                            const dist = rPoint.distanceTo(L.latLng(test.lat, test.lng));
+                            if (test.signal >= 75 && dist > maxDistGreen) maxDistGreen = dist;
+                            if (test.signal >= 30 && test.signal < 75 && dist > maxDistOrange) maxDistOrange = dist;
+                            if (test.signal < 30 && dist > maxDistRed) maxDistRed = dist;
+                        });
+
+                        if (maxDistRed > 0) {
+                            let c = L.circle([rLat, rLng], { color: '#e74c3c', fillOpacity: 0.05, weight: 1, dashArray: '4,8' }).setRadius(maxDistRed * 1.05).addTo(map);
+                            currentLayers.push(c);
+                        }
+                        if (maxDistOrange > 0) {
+                            let c = L.circle([rLat, rLng], { color: '#f39c12', fillOpacity: 0.08, weight: 1 }).setRadius(maxDistOrange * 1.05).addTo(map);
+                            currentLayers.push(c);
+                        }
+                        if (maxDistGreen > 0) {
+                            let c = L.circle([rLat, rLng], { color: '#2ecc71', fillOpacity: 0.12, weight: 2 }).setRadius(maxDistGreen * 1.05).addTo(map);
+                            currentLayers.push(c);
+                        }
+                    }
+
+                    // IŞINLAR
+                    data.tests.forEach(test => {
+                        bounds.push([test.lat, test.lng]);
+
+                        drawGradientLine(rLat, rLng, test.lat, test.lng, 100, test.signal, heatPoints);
+
+                        const markerColor = getSignalColor(test.signal);
+                        let statusText = `<span style="color:${markerColor}">Durum: %${test.signal}</span>`;
+                        if (test.signal < 30) {
+                            statusText += `<br><small style="color:#e74c3c;">⚠️ Çok Kötü / Kör Nokta</small>`;
+                        } else if (test.signal < 75) {
+                            statusText += `<br><small style="color:#f39c12;">⚠️ Cızırtılı / Zor Çekim</small>`;
+                        } else {
+                            statusText += `<br><small style="color:#2ecc71;">✅ Net / Full</small>`;
+                        }
+
+                        const testMarker = L.circleMarker([test.lat, test.lng], {
+                            radius: 6, fillColor: markerColor, color: '#fff', weight: 2, fillOpacity: 1
+                        }).bindPopup(`<h3>📍 ${test.title}</h3>Bağlı Röle: ${relayName}<br>${statusText}<br><hr style="border-color:#555; margin:5px 0;"><small><b>Not:</b> ${test.note || 'Not Yok'}</small>`);
+
+                        testMarker.addTo(map);
+                        currentLayers.push(testMarker);
+                    });
+                }
+
+                // ISIN İZİ (HEATMAP)
+                if (showHeatmap && heatPoints.length > 0) {
+                    heatLayer = L.heatLayer(heatPoints, {
+                        radius: 20,
+                        blur: 15,
+                        maxZoom: 15,
+                        minOpacity: 0.4,
+                        gradient: { 0.2: '#e74c3c', 0.5: '#f39c12', 1.0: '#2ecc71' }
+                    }).addTo(map);
+                }
+
+                if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50], duration: 1 });
+            }
+
+            document.getElementById('btn-show-all').addEventListener('click', () => {
+                currentActiveRelay = null;
+                drawCoverage(null);
+            });
+
+            // YAN PANEL RÖLE BUTONLARINI OLUŞTURMA
+            for (const [relayName, data] of Object.entries(relayData)) {
+                if (data.tests.length === 0) continue;
+
+                const btn = document.createElement('button');
+                btn.className = 'relay-btn';
+                btn.style.backgroundColor = '#2c3e50';
+                btn.style.borderLeft = `8px solid ${data.info.color}`;
+
+                let maxMenzil = 0;
+                const rPoint = L.latLng(data.info.lat, data.info.lng);
+                data.tests.forEach(t => {
+                    let d = rPoint.distanceTo(L.latLng(t.lat, t.lng));
+                    if (d > maxMenzil) maxMenzil = d;
+                });
+
+                const maxKm = (maxMenzil / 1000).toFixed(1);
+                btn.innerHTML = `📡 ${relayName} <div class="relay-stats">Menzil: ${maxKm} km | İletişim: ${data.tests.length} Nokta</div>`;
+
+                btn.addEventListener('click', () => {
+                    currentActiveRelay = relayName;
+                    drawCoverage(relayName);
+                });
+                listContainer.appendChild(btn);
+            }
+
+            // Sayfa İlk Açıldığında Çiz
+            drawCoverage(null);
+        });
+    </script>
+</body>
+</html>
