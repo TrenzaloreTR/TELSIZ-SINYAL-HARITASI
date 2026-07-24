@@ -38,15 +38,15 @@
         }
         .minimize-btn:hover { background: rgba(255,255,255,0.15); }
 
-        /* Sol Üst Açma Butonu (Aşağı kaydırıldı ve büyütüldü) */
+        /* Menüyü Açma Butonu (Ortaya kaydırıldı ve büyütüldü) */
         .maximize-btn {
-            position: absolute; top: 25px; left: 20px; z-index: 1002; 
+            position: absolute; top: 50%; left: 25px; transform: translateY(-50%); z-index: 1002; 
             background: #2c3e50; color: #fff; border: none; border-radius: 50%; 
-            width: 54px; height: 54px; font-size: 1.5rem; cursor: pointer; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; 
+            width: 64px; height: 64px; font-size: 1.8rem; cursor: pointer; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; 
             transition: transform 0.2s, background 0.2s;
         }
-        .maximize-btn:hover { transform: scale(1.08); background: #16a085; }
+        .maximize-btn:hover { transform: translateY(-50%) scale(1.08); background: #16a085; }
 
         /* Kapalı Durum Sınıfları */
         body.sidebar-collapsed #sidebar { transform: translateX(-100%); }
@@ -85,7 +85,7 @@
 </head>
 <body>
 
-    <!-- Sol Üst Menüyü Açma Butonu (Aşağı kaydırıldı ve büyütüldü) -->
+    <!-- Menüyü Açma Butonu (Ortaya taşındı, aşağıda ve büyütüldü) -->
     <button id="maximizeBtn" class="maximize-btn" title="Menüyü Aç"><i class="fa-solid fa-bars"></i></button>
 
     <div id="sidebar">
