@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TA1TRC Sinyal Analiz Haritası</title>
     
-    <!-- Leaflet, Heatmap & FontAwesome CSS/JS -->
+    <!-- Leaflet & Heatmap CSS/JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -38,17 +38,17 @@
         }
         .minimize-btn:hover { background: rgba(255,255,255,0.15); }
 
-        /* Sol Üst Açma Butonu (Menü Kapalıyken Görünür) */
+        /* Sol Üst Açma Butonu (Aşağı kaydırıldı ve büyütüldü) */
         .maximize-btn {
-            position: absolute; top: 15px; left: 15px; z-index: 1002; 
+            position: absolute; top: 25px; left: 20px; z-index: 1002; 
             background: #2c3e50; color: #fff; border: none; border-radius: 50%; 
-            width: 45px; height: 45px; font-size: 1.2rem; cursor: pointer; 
+            width: 54px; height: 54px; font-size: 1.5rem; cursor: pointer; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; 
             transition: transform 0.2s, background 0.2s;
         }
         .maximize-btn:hover { transform: scale(1.08); background: #16a085; }
 
-        /* Kapalı Durum Sınıfları (Body Üzerinden Kontrol) */
+        /* Kapalı Durum Sınıfları */
         body.sidebar-collapsed #sidebar { transform: translateX(-100%); }
         body.sidebar-collapsed #map { left: 0; }
         body.sidebar-collapsed .maximize-btn { display: flex; }
@@ -85,12 +85,11 @@
 </head>
 <body>
 
-    <!-- Sol Üst Menüyü Açma Butonu (Gizli Başlar) -->
+    <!-- Sol Üst Menüyü Açma Butonu (Aşağı kaydırıldı ve büyütüldü) -->
     <button id="maximizeBtn" class="maximize-btn" title="Menüyü Aç"><i class="fa-solid fa-bars"></i></button>
 
     <div id="sidebar">
         <h2>📡 TA1TRC Sinyal Analizi</h2>
-        <!-- Menüyü Küçült Butonu -->
         <button id="minimizeBtn" class="minimize-btn"><i class="fa-solid fa-chevron-left"></i> Menüyü Küçült</button>
         
         <div class="controls-box">
@@ -130,12 +129,12 @@
 
             minimizeBtn.addEventListener('click', () => {
                 document.body.classList.add('sidebar-collapsed');
-                setTimeout(() => { map.invalidateSize(); }, 300); // Haritanın tam ekrana yayılması için
+                setTimeout(() => { map.invalidateSize(); }, 300);
             });
 
             maximizeBtn.addEventListener('click', () => {
                 document.body.classList.remove('sidebar-collapsed');
-                setTimeout(() => { map.invalidateSize(); }, 300); // Haritanın eski boyutuna dönmesi için
+                setTimeout(() => { map.invalidateSize(); }, 300);
             });
 
             // --- 1. RÖLE VERİLERİ (İSTENİLEN SIRADA) ---
@@ -150,7 +149,7 @@
                 "Kayışdağı Rölesi": {"lat": 40.9760, "lng": 29.1520, "freq": "439.150 / 145.675 MHz", "color": "#e67e22"}
             };
 
-            // --- 2. GÜNCELLENMİŞ TÜM TEST VERİLERİ VE NOTLAR ---
+            // --- 2. TÜM TEST VERİLERİ VE NOTLAR ---
             const RAW_TESTS = [
                 {coord: "41°02'05.3\"N 28°32'45.0\"E", title: "1. İşaretli yer (Serhat Sk.)", results: [["Esenyurt Rölesi", 100]], note: "439,250 Esenyurt rölesi full çekiyor ve cızırtı yok, feedback harika."},
                 {coord: "41°02'01.4\"N 28°32'42.4\"E", title: "2. İşaretli yer (Rüzgarlı Sk.)", results: [["Esenyurt Rölesi", 100], ["Zeytinburnu Rölesi", 25]], note: "439,400 tepki vermiyor. Mandallama kesintili (Kırmızı). Esenyurt full (Yeşil)."},
