@@ -27,18 +27,24 @@
             transition: left 0.3s ease;
         }
 
-        #sidebar h2 { padding: 20px 20px 10px 20px; background-color: #1a252f; text-align: center; font-size: 1.3rem; margin: 0;}
+        #sidebar h2 { padding: 18px 20px 6px 20px; background-color: #1a252f; text-align: center; font-size: 1.25rem; margin: 0;}
         
+        /* Geliştirici Künyesi */
+        .operator-tag {
+            background-color: #1a252f; text-align: center; font-size: 0.75rem; color: #1abc9c; 
+            padding-bottom: 12px; border-bottom: 2px solid #34495e; font-weight: 600; letter-spacing: 0.5px;
+        }
+
         /* Menüyü Küçült Butonu */
         .minimize-btn {
             background: rgba(255,255,255,0.08); border: none; color: #ecf0f1; padding: 8px; 
-            width: calc(100% - 30px); margin: 0 15px 10px 15px; border-radius: 6px; cursor: pointer; 
+            width: calc(100% - 30px); margin: 10px 15px 10px 15px; border-radius: 6px; cursor: pointer; 
             font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; 
             transition: background 0.2s; background-color: #1a252f; border-bottom: 2px solid #34495e;
         }
         .minimize-btn:hover { background: rgba(255,255,255,0.15); }
 
-        /* Menüyü Açma Butonu (Ortaya kaydırıldı ve büyütüldü) */
+        /* Menüyü Açma Butonu (Ortada, Büyük) */
         .maximize-btn {
             position: absolute; top: 50%; left: 25px; transform: translateY(-50%); z-index: 1002; 
             background: #2c3e50; color: #fff; border: none; border-radius: 50%; 
@@ -85,11 +91,13 @@
 </head>
 <body>
 
-    <!-- Menüyü Açma Butonu (Ortaya taşındı, aşağıda ve büyütüldü) -->
+    <!-- Menüyü Açma Butonu -->
     <button id="maximizeBtn" class="maximize-btn" title="Menüyü Aç"><i class="fa-solid fa-bars"></i></button>
 
     <div id="sidebar">
         <h2>📡 TA1TRC Sinyal Analizi</h2>
+        <div class="operator-tag">TA1TRC • Operatör Mehmet</div>
+        
         <button id="minimizeBtn" class="minimize-btn"><i class="fa-solid fa-chevron-left"></i> Menüyü Küçült</button>
         
         <div class="controls-box">
@@ -123,7 +131,7 @@
     <script>
         document.addEventListener("DOMContentLoaded", () => {
 
-            // --- MENÜ AÇMA / KAPAMA MANTIĞI ---
+            // Menü Açma / Kapama Modülü
             const minimizeBtn = document.getElementById('minimizeBtn');
             const maximizeBtn = document.getElementById('maximizeBtn');
 
@@ -137,7 +145,7 @@
                 setTimeout(() => { map.invalidateSize(); }, 300);
             });
 
-            // --- 1. RÖLE VERİLERİ (İSTENİLEN SIRADA) ---
+            // Röle Sabit Konfigürasyonu (Sıralama Korumalı)
             const RELAYS = {
                 "Esenyurt Rölesi": {"lat": 41.0341, "lng": 28.6800, "freq": "439.250 MHz", "color": "#27ae60"},
                 "TAMAD U Rölesi": {"lat": 41.0000, "lng": 28.6000, "freq": "439.250 MHz", "color": "#2980b9"},
@@ -149,7 +157,7 @@
                 "Kayışdağı Rölesi": {"lat": 40.9760, "lng": 29.1520, "freq": "439.150 / 145.675 MHz", "color": "#e67e22"}
             };
 
-            // --- 2. TÜM TEST VERİLERİ VE NOTLAR ---
+            // Test Verileri Havuzu
             const RAW_TESTS = [
                 {coord: "41°02'05.3\"N 28°32'45.0\"E", title: "1. İşaretli yer (Serhat Sk.)", results: [["Esenyurt Rölesi", 100]], note: "439,250 Esenyurt rölesi full çekiyor ve cızırtı yok, feedback harika."},
                 {coord: "41°02'01.4\"N 28°32'42.4\"E", title: "2. İşaretli yer (Rüzgarlı Sk.)", results: [["Esenyurt Rölesi", 100], ["Zeytinburnu Rölesi", 25]], note: "439,400 tepki vermiyor. Mandallama kesintili (Kırmızı). Esenyurt full (Yeşil)."},
@@ -173,7 +181,7 @@
                 {coord: "40°58'29.1\"N 28°50'10.9\"E", title: "20. İşaretli Yer", results: [["Esenyurt Rölesi", 100], ["Beşiktaş Rölesi", 100], ["TAMAD U Rölesi", 100], ["Zeytinburnu Rölesi", 100], ["Tekstilkent Rölesi", 80], ["Kadıköy Rölesi", 80], ["Çamlıca Rölesi", 100], ["Kayışdağı Rölesi", 100]], note: "0, 3, 32, 34 net. 35, 37 hafif cızırtılı ama net. 42, 44, 45, 47, 51, 63, 70, 72, 81 net (Yeşil/Turuncu karma)."}
             ];
 
-            // --- KOORDİNAT PARSER ---
+            // Güvenli Koordinat Ayrıştırma Fonksiyonu (DMS & Decimal)
             function parseCoordinate(coordStr) {
                 if (!coordStr) return null;
                 if (!coordStr.includes("°") && coordStr.includes(",")) {
@@ -192,7 +200,7 @@
                 return null;
             }
 
-            // RAW_TESTS Verisini Harita Yapısına Dönüştür
+            // Verileri Harita Modeline Eşleme
             const relayData = {};
             for (const [rName, rInfo] of Object.entries(RELAYS)) {
                 relayData[rName] = { info: rInfo, tests: [] };
@@ -217,7 +225,7 @@
                 }
             });
 
-            // --- HARİTA KURULUMU ---
+            // Harita Başlatma
             const map = L.map('map', { zoomControl: true }).setView([41.0082, 28.9784], 10);
 
             const googleHybrid = L.tileLayer('http://mt0.google.com/vt/lyrs=y&hl=tr&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '&copy; Google' });
@@ -256,7 +264,6 @@
                 navigator.clipboard.writeText(copyText.value).then(() => alert("Koordinat kopyalandı!"));
             };
 
-            // --- ÇİZİM VE RENKLENDİRME MOTORU ---
             const listContainer = document.getElementById('relay-list');
             let currentLayers = [];
             let heatLayer = null;
@@ -276,9 +283,9 @@
             });
 
             function getSignalColor(signal) {
-                if (signal >= 75) return '#2ecc71'; // Yeşil (Net / Full)
-                if (signal >= 30) return '#f39c12'; // Turuncu (Cızırtılı / Zor)
-                return '#e74c3c';                   // Kırmızı (Çok Kötü / Kör Nokta)
+                if (signal >= 75) return '#2ecc71'; 
+                if (signal >= 30) return '#f39c12'; 
+                return '#e74c3c';                   
             }
 
             function drawGradientLine(startLat, startLng, endLat, endLng, startSignal, endSignal, heatArr) {
@@ -310,6 +317,7 @@
                 }
             }
 
+            // Kapsama Çizim ve Akıllı Mobil Zoom Optimizasyonu
             function drawCoverage(targetRelay = null) {
                 currentLayers.forEach(layer => map.removeLayer(layer));
                 if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
@@ -325,7 +333,6 @@
                     const rLng = data.info.lng;
                     bounds.push([rLat, rLng]);
 
-                    // Röle İkonu
                     const relayMarker = L.circleMarker([rLat, rLng], {
                         radius: 10, fillColor: data.info.color, color: '#fff', weight: 2, fillOpacity: 1
                     }).bindPopup(`<h3>📡 ${relayName}</h3>Frekans: ${data.info.freq}<br>Merkez İstasyon`);
@@ -334,7 +341,6 @@
 
                     if (data.tests.length === 0) continue;
 
-                    // ÇEMBERLER
                     if (showCircles) {
                         let maxDistGreen = 0, maxDistOrange = 0, maxDistRed = 0;
                         const rPoint = L.latLng(rLat, rLng);
@@ -360,7 +366,6 @@
                         }
                     }
 
-                    // IŞINLAR
                     data.tests.forEach(test => {
                         bounds.push([test.lat, test.lng]);
 
@@ -385,18 +390,26 @@
                     });
                 }
 
-                // ISIN İZİ (HEATMAP)
                 if (showHeatmap && heatPoints.length > 0) {
                     heatLayer = L.heatLayer(heatPoints, {
-                        radius: 20,
-                        blur: 15,
-                        maxZoom: 15,
-                        minOpacity: 0.4,
+                        radius: 20, blur: 15, maxZoom: 15, minOpacity: 0.4,
                         gradient: {0.2: '#e74c3c', 0.5: '#f39c12', 1.0: '#2ecc71'}
                     }).addTo(map);
                 }
 
-                if (bounds.length > 0) map.fitBounds(bounds, { padding: [50, 50], duration: 1 });
+                // MOBİL CİHAZLAR İÇİN AKILLI ZOOM LİMİTLEME (OVER-ZOOM FIX)
+                if (bounds.length > 0) {
+                    const isMobile = window.innerWidth <= 768;
+                    if (bounds.length === 1) {
+                        map.setView(bounds[0], isMobile ? 11 : 13, { animate: true });
+                    } else {
+                        map.fitBounds(bounds, { 
+                            padding: [50, 50], 
+                            duration: 1, 
+                            maxZoom: isMobile ? 11 : 13 // Mobilde aşırı yakınlaşmayı engeller
+                        });
+                    }
+                }
             }
 
             document.getElementById('btn-show-all').addEventListener('click', () => {
@@ -404,7 +417,7 @@
                 drawCoverage(null);
             });
 
-            // YAN PANEL RÖLE BUTONLARINI OLUŞTURMA
+            // Röle Butonlarını İnşa Et
             for (const [relayName, data] of Object.entries(relayData)) {
                 if (data.tests.length === 0) continue;
 
@@ -430,7 +443,6 @@
                 listContainer.appendChild(btn);
             }
 
-            // Sayfa İlk Açıldığında Çiz
             drawCoverage(null);
         });
     </script>
